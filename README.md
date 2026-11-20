@@ -1,6 +1,6 @@
 # OLA Ride Insights
 
-🚀 **Live Dashboard:** [Click Here to View OLA Ride Insights](https://your-actual-app-url.streamlit.app)
+🚀 **Live Dashboard:** [Click Here to View OLA Ride Insights](https://ola-ride-insights-jfbnp5emiwrjkwkmwfigcb.streamlit.app/)
 
 📊 Interactive OLA Ride Booking Analytics Dashboard
 
