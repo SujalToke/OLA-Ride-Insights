@@ -1,12 +1,9 @@
 import os
-import mysql.connector
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from dotenv import load_dotenv
 
-load_dotenv()
 
 st.set_page_config(
     page_title="OLA Ride Insights",
@@ -204,24 +201,30 @@ div[data-testid="stPlotlyChart"] {{
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- MySQL Connection --------------------
-def connect_db():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", "3306")),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        database=os.getenv("DB_NAME", "OLA_RIDE_INSIGHTS"),
-        connection_timeout=10,
-    )
-
-@st.cache_data(ttl=300, show_spinner="Loading data...")
+# -------------------- CSV Data Loading --------------------
+@st.cache_data(show_spinner="Loading OLA ride data...")
 def load_data():
-    conn = connect_db()
-    try:
-        data = pd.read_sql("SELECT * FROM cleaned_ola_data", conn)
-    finally:
-        conn.close()
+    csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cleaned_ola_data.csv")
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(
+            f"Dataset not found: {csv_path}. Place cleaned_ola_data.csv in the same folder as app.py."
+        )
+
+    data = pd.read_csv(
+    csv_path,
+    header=None,
+    names=[
+        "Date", "Time", "Booking_ID", "Booking_Status",
+        "Customer_ID", "Vehicle_Type", "Pickup_Location",
+        "Drop_Location", "V_TAT", "C_TAT",
+        "Canceled_Rides_by_Customer", "Canceled_Rides_by_Driver",
+        "Incomplete_Rides", "Incomplete_Rides_Reason",
+        "Booking_Value", "Payment_Method", "Ride_Distance",
+        "Driver_Ratings", "Customer_Rating", "Vehicle Images"
+    ],
+    low_memory=False,
+    na_values=["null", "NULL", "Null", "None", ""]
+)
 
     required = [
         "Date", "Booking_ID", "Booking_Status", "Customer_ID", "Vehicle_Type",
@@ -231,7 +234,7 @@ def load_data():
     ]
     missing = [c for c in required if c not in data.columns]
     if missing:
-        raise ValueError("Missing columns in MySQL table: " + ", ".join(missing))
+        raise ValueError("Missing columns in CSV file: " + ", ".join(missing))
 
     data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
     for c in ["Booking_Value", "Ride_Distance", "Driver_Ratings", "Customer_Rating"]:
@@ -240,13 +243,15 @@ def load_data():
               "Canceled_Rides_by_Customer", "Canceled_Rides_by_Driver", "Incomplete_Rides"]:
         data[c] = data[c].astype("string").str.strip()
         data[c] = data[c].replace({"": pd.NA, "null": pd.NA, "NULL": pd.NA, "None": pd.NA})
+
     data["Date_Only"] = data["Date"].dt.date
     return data
+
 
 try:
     df = load_data()
 except Exception as e:
-    st.error("Could not load OLA data from MySQL. Please check your MySQL service, credentials, and database.")
+    st.error("Could not load OLA data from CSV. Check that cleaned_ola_data.csv is beside app.py and is a valid CSV.")
     st.exception(e)
     st.stop()
 
